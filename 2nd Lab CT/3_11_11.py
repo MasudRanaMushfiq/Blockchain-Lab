@@ -30,7 +30,7 @@ class Block:
         print("Time     :", end - start, "seconds")
 
 
-difficulty = 3
+difficulty = 4
 
 print("Mining Genesis Block")
 
