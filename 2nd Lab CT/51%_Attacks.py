@@ -1,100 +1,80 @@
+
 import hashlib
-import base58
-from ecdsa import SigningKey, SECP256k1
+
+class Block:
+    def __init__(self, data, previous_hash):
+        self.data = data
+        self.previous_hash = previous_hash
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self):
+        return hashlib.sha256((self.data + self.previous_hash).encode()).hexdigest()
 
 
-def sha256(data):
-    return hashlib.sha256(data).digest()
+class Blockchain:
+    def __init__(self):
+        self.chain = [Block("Genesis Block", "0")]
 
-def hash160(data):
-    h = hashlib.new("ripemd160")
-    h.update(sha256(data))
-    return h.digest()
+    def add_block(self, data):
+        self.chain.append(Block(data, self.chain[-1].hash))
 
-def checksum(data):
-    return sha256(sha256(data))[:4]
+    def validate_chain(self):
+        for i in range(1, len(self.chain)):
+            current = self.chain[i]
+            previous = self.chain[i - 1]
 
+            if current.hash != current.calculate_hash():
+                print("Invalid hash for block", i)
+                return False
 
-def private_to_public(private_key):
+            if current.previous_hash != previous.hash:
+                print("Invalid previous hash for block", i)
+                return False
 
-    sk = SigningKey.from_string(bytes.fromhex(private_key), curve=SECP256k1)
-    vk = sk.verifying_key
+        print("Blockchain is valid")
+        return True
 
-    x = vk.pubkey.point.x()
-    y = vk.pubkey.point.y()
+    def get_chain_length(self):
+        return len(self.chain)
 
-    prefix = b'\x02' if y % 2 == 0 else b'\x03'
-    return prefix + x.to_bytes(32, "big")
+    def get_chain_hashrate(self):
+        return sum(int(block.hash, 16) for block in self.chain)
 
+    def check_for_51_percent_attack(self):
+        total_hashrate = self.get_chain_hashrate()
 
-def public_to_address(public_key):
+        for i, block in enumerate(self.chain):
+            block_hash = int(block.hash, 16)
 
-    pub_hash = hash160(public_key)
-    payload = b"\x00" + pub_hash
-    check = checksum(payload)
-    full = payload + check
+            if block_hash / total_hashrate > 0.50:
+                print("51% attack detected at block", i)
+                return True
 
-    address = base58.b58encode(full).decode()
-
-    print("\nOriginal Address :", address)
-
-    modified = address[:2] + "a" + address[3:]
-    print("Modified Address :", modified)
-
-    return modified, pub_hash, payload, check, full
-
-
-def validate_address(address):
-
-    print("\n========== ADDRESS VALIDATION ==========")
-
-    try:
-        decoded = base58.b58decode(address)
-
-        if len(decoded) != 25:
-            print("Invalid Address Length")
-            return
-
-        payload = decoded[:-4]
-        received = decoded[-4:]
-        calculated = checksum(payload)
-
-        print("Decoded Bytes :", decoded.hex())
-        print("Version       :", hex(payload[0]))
-        print("Public Hash   :", payload[1:].hex())
-        print("Checksum      :", received.hex())
-        print("Expected      :", calculated.hex())
-
-        if received == calculated:
-            print("\nResult : VALID ADDRESS")
-        else:
-            print("\nResult : INVALID ADDRESS")
-
-    except Exception as e:
-        print("Error :", e)
+        print("No 51% attack detected")
+        return False
 
 
-private_key = "1E99423A4ED27608A15A2616DE1B5A7C6E3F4C4B5D4798365A793102748664B4"
+print("Scenario 1: NO 51% ATTACK")
 
-print("=" * 65)
-print("BITCOIN ADDRESS GENERATION")
-print("=" * 65)
+blockchain = Blockchain()
+blockchain.add_block("Alice pays Bob 5 BTC")
+blockchain.add_block("Bob pays Charlie 3 BTC")
+blockchain.add_block("Charlie pays David 2 BTC")
 
-public_key = private_to_public(private_key)
+print("Chain Length:", blockchain.get_chain_length())
+blockchain.validate_chain()
+blockchain.check_for_51_percent_attack()
 
-print("\nPrivate Key")
-print(private_key)
 
-print("\nPublic Key")
-print(public_key.hex())
+print("\nScenario 2: 51% ATTACK")
 
-address, pub_hash, payload, check, full = public_to_address(public_key)
+blockchain2 = Blockchain()
+blockchain2.add_block("Alice pays Bob 100000000000000000000000000000000000999999999999999915 BTC ")
+blockchain2.add_block("Bob pays Charlie 1059 BTC")
+blockchain2.add_block("Charlie pays David 1099 BTC")
 
-print("\n========== DETAILS ==========")
-print("Public Key Hash :", pub_hash.hex())
-print("Payload         :", payload.hex())
-print("Checksum        :", check.hex())
-print("Full Payload    :", full.hex())
-print("Bitcoin Address :", address)
+blockchain2.check_for_51_percent_attack()
 
-validate_address(address)
+blockchain2.chain[1].hash = "f" * 64
+blockchain2.validate_chain()
+

@@ -2,26 +2,23 @@ from bitcoinlib.transactions import Transaction, Output
 from bitcoinlib.keys import Key
 
 print("BITCOIN TRANSACTION SIGNING")
-print("=" * 40)
 
 SIGHASH_ALL = 1
+prev_txid = "1" * 64
 
 key = Key()
 
-tx = Transaction()
+receiver = key.address()
+amount = 100000
 
-prev_txid = "1" * 64
+tx = Transaction()
 
 tx.add_input(
     prev_txid=prev_txid,
     output_n=0,
-    keys=key.public(),
-    value=110000
+    keys=key,
+    value=amount
 )
-
-receiver = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-
-amount = 100000
 
 tx.add_output(
     value=amount,
